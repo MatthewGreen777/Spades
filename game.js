@@ -37,28 +37,72 @@ function dealCards() {
         players[i % 4].hand.push(deck[i]);
     }
 
-    // Sort each player's hand
     players.forEach(player => {
         player.hand.sort((a, b) => {
-            let rankA = ranks.indexOf(a.rank);
-            let rankB = ranks.indexOf(b.rank);
-
-            if (rankA !== rankB) {
-                return rankA - rankB; // Sort numerically first
-            } else {
-                return suitOrder[a.suit] - suitOrder[b.suit]; // Sort by suit order
+            let suitComparison = suitOrder[a.suit] - suitOrder[b.suit];
+            if (suitComparison !== 0) {
+                return suitComparison; 
             }
+            return ranks.indexOf(a.rank) - ranks.indexOf(b.rank); 
         });
     });
+
+    displayHands(); // ✅ Ensure hands are shown right after dealing
 }
 
 
 // Ask players to bid (random for now)
 function placeBids() {
-    players.forEach((player, index) => {
-        player.bid = Math.floor(Math.random() * 5) + 1; // Temporary random bid
-        document.getElementById(`player-${index + 1}`).innerHTML = `Player ${index + 1} Bid: ${player.bid}`;
-    });
+    let bidModal = document.getElementById("bid-modal");
+    let bidTitle = document.getElementById("bid-modal-title");
+    let bidMessage = document.getElementById("bid-modal-message");
+    let bidInput = document.getElementById("bid-input");
+    let bidSubmit = document.getElementById("bid-submit");
+
+    let currentPlayerIndex = startingPlayer;
+
+    function submitBid() {
+        let player = players[currentPlayerIndex];
+        let bid = parseInt(bidInput.value, 10);
+
+        if (!isNaN(bid) && bid >= 0 && bid <= 13) {
+            player.bid = bid;
+            displayHands(); // ✅ Update UI immediately
+            updateScoreboard(); // ✅ Ensure bids are visible
+            
+            bidModal.style.display = "none"; // Hide modal
+            
+            currentPlayerIndex = (currentPlayerIndex + 1) % 4;
+            
+            if (currentPlayerIndex !== startingPlayer) {
+                setTimeout(askForBid, 500); // ✅ Move to next player
+            }
+        } else {
+            alert("Invalid bid. Please enter a number between 0 and 13.");
+        }
+    }
+
+    function askForBid() {
+        let player = players[currentPlayerIndex];
+
+        // ✅ Update modal with player turn
+        bidTitle.innerText = `Player ${currentPlayerIndex + 1}, it's your turn to bid!`;
+        bidMessage.innerText = "Enter your bid (0-13):";
+        bidInput.value = "";
+        bidInput.focus();
+        bidModal.style.display = "block"; // Show modal
+
+        bidSubmit.onclick = submitBid; // ✅ Handle click event
+
+        // ✅ Handle Enter key
+        bidInput.onkeydown = function(event) {
+            if (event.key === "Enter") {
+                submitBid();
+            }
+        };
+    }
+    
+    askForBid();
 }
 
 // Display player hands
@@ -168,11 +212,29 @@ function determineTrickWinner() {
     let winner = null;
 
     for (let entry of currentTrick) {
-        if (!highestCard ||
-            (entry.card.suit === leadingSuit && ranks.indexOf(entry.card.rank) > ranks.indexOf(highestCard.rank)) ||
-            (entry.card.suit === "spades" && highestCard.suit !== "spades")) {
+        if (!highestCard) {
             highestCard = entry.card;
             winner = entry.player;
+        } else {
+            // If current card is spades and previous highest is not spades, it wins
+            if (entry.card.suit === "spades" && highestCard.suit !== "spades") {
+                highestCard = entry.card;
+                winner = entry.player;
+            }
+            // If both cards are spades, the higher-ranked one wins
+            else if (entry.card.suit === "spades" && highestCard.suit === "spades") {
+                if (ranks.indexOf(entry.card.rank) > ranks.indexOf(highestCard.rank)) {
+                    highestCard = entry.card;
+                    winner = entry.player;
+                }
+            }
+            // If both are the leading suit, the higher-ranked one wins
+            else if (entry.card.suit === leadingSuit && highestCard.suit === leadingSuit) {
+                if (ranks.indexOf(entry.card.rank) > ranks.indexOf(highestCard.rank)) {
+                    highestCard = entry.card;
+                    winner = entry.player;
+                }
+            }
         }
     }
 
@@ -246,8 +308,9 @@ function startNewRound() {
     roundNumber++;
     createDeck();
     dealCards();
-    placeBids();
-    displayHands();
+    displayHands(); // ✅ Show hands immediately after dealing
+    setTimeout(placeBids, 1000); // ✅ Slight delay to ensure rendering before bidding
+
     
     // First round: find the player with the 2 of clubs
     if (roundNumber === 1) {
@@ -265,17 +328,17 @@ function startNewRound() {
 function startGame() {
     createDeck();
     dealCards();
-    placeBids();
-    displayHands();
+    displayHands(); // ✅ Show hands immediately after dealing
+    setTimeout(placeBids, 1000); // ✅ Slight delay to ensure rendering before bidding
     updateScoreboard();
 
     if (roundNumber === 1) {
-        currentPlayer = findFirstPlayer(); // Set to whoever has the 2 of Clubs
+        currentPlayer = findFirstPlayer();
     } else {
-        currentPlayer = (startingPlayer + 1) % 4; // Rotate starting player in later rounds
+        currentPlayer = (startingPlayer + 1) % 4;
     }
 
-    startingPlayer = currentPlayer; // Track who starts
+    startingPlayer = currentPlayer;
 }
 
 
